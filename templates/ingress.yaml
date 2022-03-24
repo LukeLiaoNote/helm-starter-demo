@@ -1,11 +1,14 @@
 {{- if .Values.ingress.enabled -}}
-{{- $svcName := include "<CHARTNAME>.name" . -}}
+{{- $svclName := include "<CHARTNAME>.name" . -}}
 {{- $svcPort := .Values.ingress.port -}}
+{{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: networking.k8s.io/v1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
 kind: Ingress
 metadata:
-  name: {{ $svcName }}
-  namespace: {{ .Values.namespaceOverride }}
+  name: {{ $svclName }}
   labels:
     {{- include "<CHARTNAME>.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
@@ -28,12 +31,12 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
+          - pathType: {{ .pathType }}
             {{- range .paths }}
-          - path: {{ . }}
-            pathType: ImplementationSpecific
+            path: {{ . }}
             backend:
               service:
-                name: {{ $svcName }}
+                name: {{ $svclName }}
                 port: 
                   number: {{ $svcPort }}
           {{- end }}
