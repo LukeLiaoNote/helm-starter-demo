@@ -1,0 +1,7 @@
+apiVersion: v2
+name: <CHARTNAME>
+description: Hedona starter chart
+type: application
+version: 0.0.4
+appVersion: 1.16.0
+

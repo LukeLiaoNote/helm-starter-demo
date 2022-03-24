@@ -1,0 +1,16 @@
+Thank you for installing {{ .Chart.Name }}.
+Your release is named {{ .Release.Name }}.
+
+
+To learn more about the release, try:
+  $ helm status {{ .Release.Name }}
+  $ helm get {{ .Release.Name }}
+
+{{- if .Values.ingress.enabled }}
+Get the application URL by running these commands:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

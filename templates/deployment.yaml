@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "<CHARTNAME>.name" . }}
+  namespace: {{ .Values.namespaceOverride }}
+  labels:
+    {{- include "<CHARTNAME>.labels" . | nindent 4 }}
+  annotations:
+  {{- toYaml .Values.annotations | nindent 4}}
+spec:
+{{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+{{- end }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 6 }}
+  selector:
+    matchLabels:
+      {{- include "<CHARTNAME>.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      labels:
+        {{- include "<CHARTNAME>.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.affinity }}
+      affinity:
+      {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.image.imagePullSecrets }}
+      imagePullSecrets:
+        - name: {{ .Values.image.imagePullSecrets }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ include "<CHARTNAME>.name" . }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.command }}
+          command: 
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          volumeMounts: 
+          {{- if .Values.config.enabled }}
+          - name: {{ .Values.config.name }}
+            mountPath: {{ .Values.config.mountPath }}
+            subPath: {{ .Values.config.subPath }}
+          {{- end }}
+          ports:
+            {{- range $key,$value := .Values.service.ports }}
+            - name: {{ $key }}
+              containerPort: {{ $value.port }}
+              protocol: {{ $value.protocol }}
+            {{- end }}
+          {{- if .Values.healthCheck.enabled }}
+          livenessProbe:
+            {{- if eq .Values.healthCheck.type "http" }}
+            httpGet:
+              path: {{ .Values.healthCheck.httpPath }}
+              port: {{ .Values.healthCheck.port }}
+            {{- else }}
+            tcpSocket:
+              port: {{ .Values.healthCheck.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .Values.healthCheck.livenessInitialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.livenessPeriodSeconds }}
+            successThreshold: {{ .Values.healthCheck.livenesssuccessThreshold | default 1 }}
+            timeoutSeconds: {{ .Values.healthCheck.livenesstimeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.healthCheck.livenessfailureThreshold | default 3 }}
+          readinessProbe:
+            {{- if eq .Values.healthCheck.type "http" }}
+            httpGet:
+              path: {{ .Values.healthCheck.httpPath }}
+              port: {{ .Values.healthCheck.port }}
+            {{- else }}
+            tcpSocket:
+              port: {{ .Values.healthCheck.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .Values.healthCheck.livenessInitialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.livenessPeriodSeconds }}
+            successThreshold: {{ .Values.healthCheck.readinesssuccessThreshold | default 1 }}
+            timeoutSeconds: {{ .Values.healthCheck.readinesstimeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.healthCheck.readinessfailureThreshold | default 3 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes: 
+        {{- if .Values.config.enabled }}
+        - name: {{ .Values.config.name }}
+          configMap:
+            name: {{ .Values.config.configmapname }}
+        {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end  }}

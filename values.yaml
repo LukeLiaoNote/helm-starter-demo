@@ -1,0 +1,132 @@
+# Default values for server-sms.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: "<CHARTNAME>"
+fullnameOverride: ""
+
+namespaceOverride: namespace
+replicaCount: 2
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 50%
+    maxUnavailable: 50%
+
+labels:
+  environment: btcex
+  tier: backend
+  project: project
+
+annotations: {}
+
+image:
+  repository: 
+  tag: 
+  pullPolicy: Always
+  imagePullSecrets: default
+
+command:
+  - java
+  - '-Xms2g'
+  - '-Xmn3g'
+  - '-Xmx3500M'
+  - '-Dserver.port=80'
+  - '-Dlog4j2.formatMsgNoLookups=true'
+  - '-jar'
+  - example.jar
+  
+config:
+  enabled: ture
+  name: bootstrap-config-volume
+  mountPath: /bit/bootstrap.properties
+  subPath: bootstrap-config
+  configmapname: bootstrap-properties
+
+deployment:
+  additionalVolumes: []
+
+## liveness and readiness 
+healthCheck:
+  enabled: true
+  type: http  # http/tcp
+  port: http  # 健康检查的端口名或端口
+  httpPath: '/api/v1/private/monitor/health'  # http时必须设置
+  livenessInitialDelaySeconds: 30  # 初始延迟秒数
+  livenessPeriodSeconds: 5  # 检测周期，默认值10，最小为1
+  readinessInitialDelaySeconds: 10  # 初始延迟秒数
+  readinessPeriodSeconds: 10   # 检测周期，默认值10，最小为1
+  livenesssuccessThreshold: 1
+  livenesstimeoutSeconds: 3
+  readinesssuccessThreshold: 1
+  readinesstimeoutSeconds: 3
+  livenessfailureThreshold: 3
+  readinessfailureThreshold: 3
+
+podAnnotations: {}
+podSecurityContext: {}
+
+volumes:
+  - name: bootstrap-config-volume
+    configMap:
+      name: bootstrap-properties
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    add:
+      - ALL
+  privileged: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
+
+
+service:
+  type: ClusterIP
+  ports:
+    http:
+      port: 80
+      protocol: TCP
+serviceannotations:
+  #prometheus pod监控开关注解
+  prometheus.io/scrape: 'true'
+  prometheus.io/http-probe-path: /api/v1/private/monitor/health
+  prometheus.io/http-probe-port: '80'
+  #prometheus jvm监控开关注解
+  prometheus.io/path: /api/v1/private/monitor/prometheus
+  prometheus.io/port: '80'
+  prometheus.io/spring: 'true'
+
+ingress:
+  enabled: false
+  # port: 80
+  # annotations: 
+  #   kubernetes.io/ingress.class: nginx
+  #   # kubernetes.io/tls-acme: "true"
+  # hosts:
+  #   - host: www.example.com
+  #     paths: 
+  #       - /
+  # tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: "2"
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 85
+  # targetMemoryUtilizationPercentage: 80
+affinity: {}
+nodeSelector:
+  nodetype: nornal
